@@ -7,7 +7,10 @@ The project is the first project I wrote in python.
 ## Installation:
 
 Download the program files from the repository
+
 Install Python 3.6 or higher
+
 Install the required Python libraries: numpy, PIL, and matplotlib
+
 Command: pip install numpy PIL matplotlib
 
