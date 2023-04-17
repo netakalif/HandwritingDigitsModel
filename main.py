@@ -3,6 +3,7 @@ import struct
 import numpy as np
 from array import array
 import matplotlib.pyplot as plt
+import random
 
 class MnistDataloader(object):
     def __init__(self, training_images_filepath,training_labels_filepath,
@@ -58,6 +59,8 @@ x_train = x_train / 255.0 - 0.5
 x_test = x_test / 255.0 - 0.5
 
 #-------------------a+b--------------------
+""" Write a program to reduce the dimension of the data (using PCA) into a dimension
+ of size parameterized by p (later, we will set it to 40)."""
 
 m=x_train.shape[0]
 # Flatten the images into vectors
@@ -98,55 +101,30 @@ plt.title('Reconstructed image')
 plt.show()
 
 #-------------------c--------------------
-def kmeans(X, k,centers_kmeans ,max_iter=5):
-    for i in range (max_iter):
-        assigned_centers=assign_to_closest_center(X,centers_kmeans)
-        centers_kmeans=recompute_centers(X,assigned_centers,k, centers_kmeans)
+"""Write a program for applying the Kmeans clustering algorithm using k clusters.
+Use random initialization (say, random values in [-0.5,0.5]). You should not use
+built-in codes."""
+
+def kmeans(X, k, centers_kmeans, max_iter=5):
+    for i in range(max_iter):
+        assigned_centers = assign_to_closest_center(X, centers_kmeans)
+        centers_kmeans = recompute_centers(X, assigned_centers, k)
+    
     plt.scatter(X[:, 0], X[:, 1], c=assigned_centers, cmap='viridis')
     plt.scatter(centers_kmeans[:, 0], centers_kmeans[:, 1], c='red', marker='x')
     plt.show()
-    return assigned_centers,centers_kmeans
-
-
-def assign_to_closest_center(B, centers_assign):
-  assigned_centers = []
-  # Loop through each photo
-  for d in range(B.shape[0]):
-    # Calculate the distances between the photo and each center
-    photo=B[d]
-    distances = []
-    for i in range(centers_assign.shape[0]):
-      temp_center = centers_assign[i]
-      distance = 0
-      for j in range(B.shape[1]):
-        distance += (photo[j] - temp_center[j]) ** 2
-      distance = math.sqrt(distance)
-      distances.append(distance)
     
-    # Find the index of the center with the shortest distance
-    min_index = distances.index(min(distances))
-    
-    # Assign the center with the shortest distance to the photo
-    assigned_centers.append(min_index)
-  return assigned_centers
+    return assigned_centers, centers_kmeans
 
-def recompute_centers(B, assigned_centers,k,centers):
-    numOfelements=B.shape[1]
-    assigned_centers_array = np.array(assigned_centers)
-    numOfImagesPerCenter = np.zeros(k)
-    sumOfVectors = np.zeros((k, numOfelements))
-    for i in range(len(assigned_centers_array)):
-        center=assigned_centers_array[i]
-        numOfImagesPerCenter[center] += 1
-        for p in range(numOfelements):
-            sumOfVectors[center,p] += B[i,p]
-    for j in range (k):
-        if numOfImagesPerCenter[j]!=0:
-            sumOfVectors[j] = sumOfVectors[j] / numOfImagesPerCenter[j]
-        else:
-            sumOfVectors[j]=centers[j]
-    return sumOfVectors
+def assign_to_closest_center(X, centers_kmeans):
+    assigned_centers = np.argmin(np.linalg.norm(X[:, np.newaxis, :] - centers_kmeans, axis=2), axis=1)
+    return assigned_centers
+
+def recompute_centers(X, assigned_centers, k):
+    centers_kmeans = np.array([X[assigned_centers == i].mean(axis=0) if np.sum(assigned_centers == i) != 0 else np.random.uniform(low=-0.5, high=0.5, size=X.shape[1]) for i in range(k)])
+    return centers_kmeans
 #-------------------d--------------------
+"""Using k = 10, classify the reduced images (p = 40) from the training data set."""
 # Define the number of clusters
 k = 10
 # define each row  to be image, and each coulmn to be element
@@ -155,13 +133,12 @@ w_train=w_train.T
 centroids = np.random.uniform(low=-0.5, high=0.5, size=(k, w_train.shape[1])) 
 assigned_centers,centers_assign_after_kmeans = kmeans(w_train, k, centroids)
 assigned_centers=np.array(assigned_centers)
+
 #---------------------------e------------------------------------
-def find_max_index(arr):
-    max_index = 0
-    for i in range(1, len(arr)):
-        if arr[i] > arr[max_index]:
-            max_index = i
-    return max_index
+"""See which of the clusters you found corresponds to which digit. Assign a digit to
+a cluster that you found using the most common label in that cluster - use the
+train labels to determine that."""
+
 
 def give_centers_lebles(assigned_centers, y):
     sums_of_images_per_center = np.zeros((k, k))
@@ -172,7 +149,7 @@ def give_centers_lebles(assigned_centers, y):
         sums_of_images_per_center[image_assigned_center, image_real_lable] +=1
 
     for j in range (k):
-        approximate_center=find_max_index(sums_of_images_per_center[j])
+        approximate_center=np.argmax(sums_of_images_per_center[j])
         centers_to_labels[j]=approximate_center
     return centers_to_labels
 
@@ -180,6 +157,10 @@ def give_centers_lebles(assigned_centers, y):
 centers_to_labels=give_centers_lebles(assigned_centers, y_train)
 
 #--------------------------------f------------------------------------
+"""Test your success: for each of the images in the test data, estimate its label
+using closest centroid (and its cluster’s label) and check the percentage of true
+estimations using the test labels. Report your model’s results."""
+
 #do the same procces on the x_test matrix
 m=x_train.shape[0]
 X = (x_test.reshape(x_test.shape[0], -1)).T
@@ -200,6 +181,9 @@ assigned_photos_to_centers=assign_to_closest_center(w_test,centers_assign_after_
 succses_presents=caculate_succses(centers_to_labels, assigned_photos_to_centers, y_test,w_test)
 print(succses_presents)
 #-----------------------------g--------------------------------------
+"""See if the process above is consistent or not with respect to the random initialization.
+ Try this 3 times and report your results."""
+
 for i in range(3):
     centroids = np.random.uniform(low=-0.5, high=0.5, size=(k, w_train.shape[1])) 
     assigned_W_train_photos_to_centers,centers_assign_after_kmeans = kmeans(w_train, k, centroids)
@@ -210,6 +194,9 @@ for i in range(3):
     print(i, 'has a ',succses_presents, 'precent sucsses rate')
 
 #-----------------------------i--------------------------------------
+"""Try initializing each of the Kmeans centroids using the mean of 10 reduced images
+that you pick from each label. Are the results better now (use p = 40 again)?"""
+
 centroids=np.zeros((10,w_train.shape[1]))
 for i in range(10):
         counter=0
